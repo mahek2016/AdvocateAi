@@ -1,12 +1,120 @@
-﻿from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 import json
 import hashlib
 import secrets
 from datetime import datetime
 import re
+import os
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
+
+# File-system locations for persistent storage
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
+DATASETS_FILE = os.path.join(DATA_DIR, "datasets.json")
+
+# Ensure data directory exists
+os.makedirs(DATA_DIR, exist_ok=True)
+
+
+def _save_json(file_path, data):
+    with open(file_path, "w", encoding="utf-8") as file_handle:
+        json.dump(data, file_handle, ensure_ascii=False, indent=2)
+
+
+def _load_json(file_path, default):
+    if not os.path.exists(file_path):
+        return default
+    try:
+        with open(file_path, "r", encoding="utf-8") as file_handle:
+            return json.load(file_handle)
+    except Exception:
+        return default
+
+
+def _hash_password(password, salt):
+    return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+
+
+def _ensure_default_user():
+    users = _load_json(USERS_FILE, {})
+    if not users:
+        # Create a default admin user on first run
+        salt = secrets.token_hex(8)
+        users["admin"] = {
+            "salt": salt,
+            "password_hash": _hash_password("admin123", salt),
+            "created_at": datetime.now().isoformat(),
+            "role": "admin"
+        }
+        _save_json(USERS_FILE, users)
+
+
+def _get_default_dataset():
+    # Organized exactly as requested by the user
+    return {
+        "Crimes Against the Person (Bodily & Life Offenses)": [
+            {"Crime": "Murder", "IPC Section": "302", "Punishment Severity": "Extremely Severe", "Concrete Numbers": "Death penalty or life imprisonment (with or without fine)."},
+            {"Crime": "Culpable Homicide Not Amounting to Murder", "IPC Section": "304", "Punishment Severity": "Severe", "Concrete Numbers": "Imprisonment up to 10 years or life imprisonment and fine."},
+            {"Crime": "Rape", "IPC Section": "376", "Punishment Severity": "Severe", "Concrete Numbers": "Rigorous imprisonment for minimum 7 years to life and fine."},
+            {"Crime": "Attempt to Murder", "IPC Section": "307", "Punishment Severity": "Severe", "Concrete Numbers": "Imprisonment up to 10 years, potentially life imprisonment."},
+            {"Crime": "Voluntarily Causing Grievous Hurt by Dangerous Weapon", "IPC Section": "322", "Punishment Severity": "High", "Concrete Numbers": "Imprisonment up to 10 years and fine."},
+            {"Crime": "Kidnapping", "IPC Section": "363", "Punishment Severity": "Moderate to High", "Concrete Numbers": "Imprisonment up to 7 years with fine."},
+            {"Crime": "Assault", "IPC Section": "351", "Punishment Severity": "Low", "Concrete Numbers": "Imprisonment up to 3 months or fine up to 500 rupees or both."},
+            {"Crime": "Voluntarily Causing Hurt", "IPC Section": "321", "Punishment Severity": "Low", "Concrete Numbers": "Imprisonment up to 1 year or fine or both."}
+        ],
+        "Crimes Against Property": [
+            {"Crime": "Robbery", "IPC Section": "392", "Punishment Severity": "High", "Concrete Numbers": "Imprisonment up to 10 years and fine."},
+            {"Crime": "Cheating & Dishonestly Inducing Delivery of Property (e.g., severe cheating)", "IPC Section": "420", "Punishment Severity": "High", "Concrete Numbers": "Imprisonment up to 7 years and fine."},
+            {"Crime": "Theft", "IPC Section": "379", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years or fine or both."},
+            {"Crime": "Extortion", "IPC Section": "384", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years and fine."},
+            {"Crime": "Mischief (Damage over 50 rupees)", "IPC Section": "427", "Punishment Severity": "Low to Moderate", "Concrete Numbers": "Imprisonment up to 2 years, or fine, or both."}
+        ],
+        "Crimes Related to Forgery and Counterfeiting": [
+            {"Crime": "Forgery of Valuable Security", "IPC Section": "467", "Specific Act": "IPC", "Punishment Severity": "High", "Concrete Numbers": "Imprisonment up to 7 years and fine."},
+            {"Crime": "Counterfeiting Currency/Selling Forged Currency", "IPC Section": "489A", "Specific Act": "IPC", "Punishment Severity": "High", "Concrete Numbers": "Imprisonment up to 7 years and fine."},
+            {"Crime": "Forgery (General)", "IPC Section": "463, 465", "Specific Act": "IPC", "Punishment Severity": "Low to Moderate", "Concrete Numbers": "Imprisonment up to 2 years or fine or both."},
+            {"Crime": "Counterfeiting Government Seal/Stamps", "IPC Section": "489C, 489B", "Specific Act": "IPC", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years and fine."}
+        ],
+        "Crimes Against Women": [
+            {"Crime": "Rape", "IPC Section": "376", "Punishment Severity": "Severe", "Concrete Numbers": "Rigorous imprisonment for minimum 7 years to life and fine."},
+            {"Crime": "Dowry Death", "IPC Section": "304B", "Punishment Severity": "Severe", "Concrete Numbers": "Minimum imprisonment 7 years to life."},
+            {"Crime": "Cruelty by Husband or Relatives (Domestic Violence)", "IPC Section": "498A", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years and fine."},
+            {"Crime": "Outraging Modesty/Assault on Woman", "IPC Section": "354", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 2 years and fine."},
+            {"Crime": "Stalking", "IPC Section": "354D", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years and fine."},
+            {"Crime": "Harassment of Women at Workplace (Word/Gesture)", "IPC Section": "509", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years and fine."}
+        ],
+        "Public Order and Security Offenses": [
+            {"Crime": "Promotion of Enmity Between Groups", "IPC Section": "153A", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years or fine or both."},
+            {"Crime": "Rioting Armed with Deadly Weapon", "IPC Section": "148", "Punishment Severity": "Moderate", "Concrete Numbers": "Imprisonment up to 3 years or fine or both."},
+            {"Crime": "Defiling Place of Worship", "IPC Section": "295", "Punishment Severity": "Low to Moderate", "Concrete Numbers": "Imprisonment up to 2 years or fine or both."},
+            {"Crime": "Unlawful Assembly", "IPC Section": "141, 143", "Punishment Severity": "Low", "Concrete Numbers": "Imprisonment up to 6 months or fine or both."},
+            {"Crime": "Disobedience to Public Servant's Order", "IPC Section": "188", "Punishment Severity": "Low", "Concrete Numbers": "Imprisonment up to 6 months or fine or both."}
+        ]
+    }
+
+
+def _ensure_default_dataset():
+    existing = _load_json(DATASETS_FILE, None)
+    if existing is None:
+        _save_json(DATASETS_FILE, _get_default_dataset())
+
+
+def login_required(view_func):
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        if not session.get("user"):
+            return redirect(url_for("login", next=request.path))
+        return view_func(*args, **kwargs)
+    return wrapper
+
+
+# Initialize persistent data on startup
+_ensure_default_user()
+_ensure_default_dataset()
 
 # Enhanced IPC sections database with more categories
 IPC_SECTIONS = {
@@ -327,9 +435,33 @@ legal_ai = EnhancedLegalAI()
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    dataset = _load_json(DATASETS_FILE, _get_default_dataset())
+    return render_template("index.html", dataset=dataset, theme=session.get("theme", "light"), user=session.get("user"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        users = _load_json(USERS_FILE, {})
+        user = users.get(username)
+        if user:
+            salt = user.get("salt", "")
+            if _hash_password(password, salt) == user.get("password_hash"):
+                session["user"] = {"username": username, "role": user.get("role", "user")}
+                return redirect(request.args.get("next") or url_for("index"))
+        flash("Invalid username or password", "error")
+    return render_template("login.html", theme=session.get("theme", "light"), user=session.get("user"))
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("index"))
 
 @app.route("/chat", methods=["POST"])
+@login_required
 def chat():
     try:
         data = request.get_json()
@@ -353,12 +485,40 @@ def chat():
         return jsonify({"error": "An error occurred processing your request"}), 500
 
 @app.route("/document", methods=["POST"])
+@login_required
 def generate_document():
     try:
         data = request.get_json()
         document_type = data.get("type", "complaint")
         user_details = data.get("details", {})
+        referenced_crime = data.get("crime")  # optional, to sync with dataset
+        referenced_category = data.get("category")
+
+        # Pull referenced dataset info if provided
+        dataset = _load_json(DATASETS_FILE, _get_default_dataset())
+        referenced_info = None
+        if referenced_crime:
+            # Search across categories
+            for category_name, rows in dataset.items():
+                for row in rows:
+                    if row.get("Crime", "").lower() == str(referenced_crime).lower():
+                        referenced_info = row
+                        referenced_category = category_name
+                        break
+                if referenced_info:
+                    break
         
+        annex = ""
+        if referenced_info:
+            annex = (
+                "\n\nANNEXURE: Referenced Crime Details\n"
+                f"Category: {referenced_category}\n"
+                f"Crime: {referenced_info.get('Crime', '')}\n"
+                f"IPC Section: {referenced_info.get('IPC Section', '')}\n"
+                f"Punishment Severity: {referenced_info.get('Punishment Severity', referenced_info.get('Specific Act', ''))}\n"
+                f"Details: {referenced_info.get('Concrete Numbers', '')}"
+            )
+
         document = f"""
 LEGAL DOCUMENT - {document_type.upper()}
 
@@ -383,6 +543,7 @@ Yours faithfully,
 ---
 This document has been generated by Personal Advocate AI for informational purposes only.
 Please consult with a qualified lawyer before filing any legal documents.
+{annex}
         """
         
         return jsonify({
@@ -394,13 +555,49 @@ Please consult with a qualified lawyer before filing any legal documents.
         return jsonify({"error": "Error generating document"}), 500
 
 @app.route("/history")
+@login_required
 def get_history():
     return jsonify(session.get("conversation", []))
 
 @app.route("/clear")
+@login_required
 def clear_history():
     session.pop("conversation", None)
     return jsonify({"status": "success"})
+
+
+@app.route("/datasets", methods=["GET", "POST"])
+@login_required
+def datasets():
+    if request.method == "GET":
+        return jsonify(_load_json(DATASETS_FILE, _get_default_dataset()))
+
+    # POST: append or replace dataset entries
+    payload = request.get_json(silent=True) or {}
+    mode = str(payload.get("mode", "append")).lower()
+    incoming = payload.get("data")
+    if not isinstance(incoming, dict):
+        return jsonify({"error": "Invalid payload. Expecting { 'data': {<Category>: [rows...]}, 'mode': 'append|replace' }"}), 400
+
+    current = _load_json(DATASETS_FILE, _get_default_dataset())
+    if mode == "replace":
+        _save_json(DATASETS_FILE, incoming)
+    else:
+        # Append by category
+        for category_name, rows in incoming.items():
+            current.setdefault(category_name, [])
+            if isinstance(rows, list):
+                current[category_name].extend(rows)
+        _save_json(DATASETS_FILE, current)
+    return jsonify({"status": "success"})
+
+
+@app.route("/theme", methods=["POST"])
+def set_theme():
+    data = request.get_json(silent=True) or {}
+    theme = data.get("theme", "light")
+    session["theme"] = theme if theme in ("light", "dark") else "light"
+    return jsonify({"status": "ok", "theme": session["theme"]})
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
