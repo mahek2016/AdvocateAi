@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Advocate AI - Your Legal Companion</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Enhanced Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-balance-scale"></i>
+                    <h1>Personal Advocate AI</h1>
+                </div>
+                <p class="tagline">Your Intelligent Legal Companion - Making Justice Accessible to Everyone</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Enhanced Chat Interface -->
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2><i class="fas fa-comments"></i> Legal Consultation</h2>
+                    <div class="chat-controls">
+                        <button id="clearChat" class="btn-secondary">
+                            <i class="fas fa-trash"></i> Clear Chat
+                        </button>
+                        <button id="generateDoc" class="btn-primary">
+                            <i class="fas fa-file-alt"></i> Generate Document
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai-message">
+                        <div class="message-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <p> Welcome to your Personal Advocate AI! I'm here to help you understand legal matters in simple terms. Whether you're dealing with property disputes, workplace issues, family matters, or any legal concern, just describe your situation in plain English and I'll guide you through the relevant laws and your rights.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <div class="input-group">
+                        <input type="text" id="messageInput" placeholder="Describe your legal issue in simple words..." class="chat-input">
+                        <button id="sendButton" class="send-button">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Features Panel -->
+            <div class="features-panel">
+                <h3><i class="fas fa-star"></i> Why Choose Our AI?</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-language"></i>
+                        <h4>Plain English</h4>
+                        <p>No legal jargon! Ask questions in simple, everyday language and get clear, understandable answers.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-book"></i>
+                        <h4>IPC Sections</h4>
+                        <p>Get specific Indian Penal Code sections relevant to your case with detailed explanations.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-gavel"></i>
+                        <h4>Case Precedents</h4>
+                        <p>Access relevant court cases and legal precedents to understand how similar cases were handled.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-shield-alt"></i>
+                        <h4>Secure & Private</h4>
+                        <p>Your legal information is protected with enterprise-grade security and privacy measures.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-file-contract"></i>
+                        <h4>Document Generation</h4>
+                        <p>Automatically generate legal documents like complaints, notices, and applications.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-clock"></i>
+                        <h4>24/7 Available</h4>
+                        <p>Get legal guidance anytime, anywhere. No need to wait for office hours or appointments.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Quick Questions Panel -->
+        <div class="quick-questions">
+            <h3><i class="fas fa-question-circle"></i> Common Legal Questions</h3>
+            <div class="question-grid">
+                <div class="question-card" onclick="askQuestion('My landlord is not returning my security deposit. What can I do?')">
+                    <p> My landlord is not returning my security deposit. What can I do?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('My employer is not paying my salary on time. What are my rights?')">
+                    <p> My employer is not paying my salary on time. What are my rights?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('Someone is spreading false rumors about me on social media. Can I take legal action?')">
+                    <p> Someone is spreading false rumors about me on social media. Can I take legal action?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('My neighbor is playing loud music at night. What can I do legally?')">
+                    <p> My neighbor is playing loud music at night. What can I do legally?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('I was cheated in an online shopping transaction. How can I get my money back?')">
+                    <p> I was cheated in an online shopping transaction. How can I get my money back?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('My spouse is threatening me with divorce. What are my legal rights?')">
+                    <p> My spouse is threatening me with divorce. What are my legal rights?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('I was injured in a road accident. How can I claim compensation?')">
+                    <p> I was injured in a road accident. How can I claim compensation?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('My property documents are missing. How can I get duplicate copies?')">
+                    <p> My property documents are missing. How can I get duplicate copies?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('I want to file a complaint against a government office for delay. What is the process?')">
+                    <p> I want to file a complaint against a government office for delay. What is the process?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('Someone is using my photos without permission. Can I sue them?')">
+                    <p> Someone is using my photos without permission. Can I sue them?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('I want to start a business. What legal documents do I need?')">
+                    <p> I want to start a business. What legal documents do I need?</p>
+                </div>
+                <div class="question-card" onclick="askQuestion('My child is being bullied at school. What legal action can I take?')">
+                    <p> My child is being bullied at school. What legal action can I take?</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Document Generation Modal -->
+        <div id="documentModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-file-alt"></i> Generate Legal Document</h3>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="documentForm">
+                        <div class="form-group">
+                            <label for="docType">Document Type:</label>
+                            <select id="docType" name="type" required>
+                                <option value="complaint">Legal Complaint</option>
+                                <option value="petition">Court Petition</option>
+                                <option value="application">Legal Application</option>
+                                <option value="notice">Legal Notice</option>
+                                <option value="agreement">Legal Agreement</option>
+                                <option value="affidavit">Affidavit</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="userName">Your Full Name:</label>
+                            <input type="text" id="userName" name="name" required placeholder="Enter your full name">
+                        </div>
+                        <div class="form-group">
+                            <label for="userAddress">Complete Address:</label>
+                            <textarea id="userAddress" name="address" rows="3" required placeholder="Enter your complete address with PIN code"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description of the Legal Matter:</label>
+                            <textarea id="description" name="description" rows="4" required placeholder="Describe your legal issue in detail"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-magic"></i> Generate Document
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
